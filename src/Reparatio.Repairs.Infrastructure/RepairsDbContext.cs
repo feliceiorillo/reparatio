@@ -123,4 +123,3 @@ public sealed class RepairsDesignTimeFactory : IDesignTimeDbContextFactory<Repai
         return new RepairsDbContextFactory(connection).CreateDbContext();
     }
 }
-

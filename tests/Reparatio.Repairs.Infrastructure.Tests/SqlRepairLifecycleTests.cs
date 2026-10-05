@@ -176,7 +176,8 @@ public class SqlRepairLifecycleTests
         async Task CaptureReassignment()
         {
             try { await handler.HandleAsync(data.Reassign()); }
-            catch (InvalidOperationException) { /* Positive testing can win first, closing pending work. */ }
+            catch (InvalidOperationException e) when (e.Message == "Only assigned repairs with pending work can be reassigned.")
+            { /* Positive testing can win first, closing pending work. */ }
         }
     }
     private sealed class Clock : TimeProvider { public override DateTimeOffset GetUtcNow() => At; }

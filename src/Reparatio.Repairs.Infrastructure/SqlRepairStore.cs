@@ -109,9 +109,9 @@ public sealed partial class SqlRepairStore(IDbContextFactory<RepairsDbContext> f
     }
 
     private sealed record ReadData(long Version, IReadOnlyList<TechnicianCandidate> Candidates,
-        IReadOnlyList<WaitingRepairCandidate> Waiting, ReceiptRow? Receipt);
+        IReadOnlyList<WaitingRepairCandidate> Waiting, ReceiptRow? Receipt, RepairState? Repair);
 
-    private async Task<ReadData> ReadCore(Guid tenantId, Guid siteId, string operation, Guid requestId, CancellationToken token)
+    private async Task<ReadData> ReadCore(Guid tenantId, Guid siteId, string operation, Guid requestId, CancellationToken token, Guid? repairId = null)
     {
         for (var attempt = 0; ; attempt++)
         {
@@ -128,8 +128,15 @@ public sealed partial class SqlRepairStore(IDbContextFactory<RepairsDbContext> f
                 var waiting = await db.Repairs.AsNoTracking().Where(r => r.TenantId == tenantId && r.SiteId == siteId
                     && r.Status == RepairStatus.WaitingForAssignment).OrderBy(r => r.ArrivalSequence)
                     .Select(r => new WaitingRepairCandidate(r.Id, r.TenantId, r.SiteId, r.ArrivalSequence)).ToListAsync(token);
+                RepairState? repairState = null;
+                if (repairId is { } id)
+                {
+                    var row = await db.Repairs.AsNoTracking().SingleOrDefaultAsync(r => r.TenantId == tenantId
+                        && r.SiteId == siteId && r.Id == id, token);
+                    if (row is not null) repairState = await ReadRepairState(db, row, token);
+                }
                 await transaction.CommitAsync(token);
-                return new(site.Version, technicians.Select(t => t.Snapshot()).ToArray(), waiting, receipt);
+                return new(site.Version, technicians.Select(t => t.Snapshot()).ToArray(), waiting, receipt, repairState);
             }
             catch (SqlException e) when (e.Number == 1205 && attempt < 4) { }
         }
@@ -147,4 +154,3 @@ public sealed partial class SqlRepairStore(IDbContextFactory<RepairsDbContext> f
         { TenantId = tenantId, SiteId = siteId, Operation = operation, RequestId = requestId,
             Payload = JsonSerializer.Serialize(command), Result = JsonSerializer.Serialize(result) };
 }
-
