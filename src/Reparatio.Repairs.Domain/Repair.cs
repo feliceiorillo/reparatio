@@ -37,7 +37,16 @@ public sealed class Repair
     private readonly List<TechnicianReassignment> reassignments = [];
     public IReadOnlyList<TechnicianReassignment> Reassignments => reassignments.AsReadOnly();
 
-    public void AssignWaiting(TechnicianCandidate technician) => throw new NotImplementedException();
+    public void AssignWaiting(TechnicianCandidate technician)
+    {
+        ArgumentNullException.ThrowIfNull(technician);
+        RequireStatus(RepairStatus.WaitingForAssignment);
+        if (TechnicianId is not null || technician.TenantId != TenantId
+            || technician.SiteId != SiteId || !technician.IsAvailable)
+            throw new InvalidOperationException("An available technician from the repair site is required.");
+        TechnicianId = technician.Id;
+        Status = RepairStatus.AwaitingDiagnosis;
+    }
 
     public void Reassign(TechnicianCandidate technician, Guid actorId,
         DateTimeOffset occurredAt, string reason)
@@ -105,5 +114,6 @@ public sealed class Repair
             TechnicianAssignmentPolicy.Select(tenantId, siteId, candidates));
     }
 }
+
 
 
