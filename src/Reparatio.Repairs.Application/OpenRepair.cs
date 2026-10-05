@@ -28,7 +28,29 @@ public interface IRepairOpeningStore
 
 public sealed class OpenRepairHandler(IRepairAccess access, IRepairOpeningStore store, TimeProvider clock)
 {
-    public Task<OpenRepairResult> HandleAsync(OpenRepairCommand command, CancellationToken cancellationToken = default)
-        => Task.FromException<OpenRepairResult>(new NotImplementedException($"{access.GetType().Name}/{store.GetType().Name}/{clock.GetType().Name}"));
+    public async Task<OpenRepairResult> HandleAsync(OpenRepairCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        if (command.RequestId == Guid.Empty || command.RepairId == Guid.Empty
+            || command.TenantId == Guid.Empty || command.SiteId == Guid.Empty)
+            throw new ArgumentException("All command identifiers are required.", nameof(command));
+        cancellationToken.ThrowIfCancellationRequested();
+        await access.EnsureCanReceiveAsync(command.TenantId, command.SiteId, cancellationToken);
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var snapshot = await store.ReadAsync(command, cancellationToken);
+            if (snapshot.Receipt is { } receipt)
+            {
+                if (receipt.Command != command)
+                    throw new InvalidOperationException("Request identifier was already used for a different command.");
+                return receipt.Result;
+            }
+            var repair = Repair.Open(command.RepairId, command.TenantId, command.SiteId, snapshot.Candidates);
+            if (await store.TryCommitAsync(command, snapshot.Version, repair, clock.GetUtcNow(), cancellationToken))
+                return new(repair.Id, repair.TechnicianId, repair.Status);
+        }
+        throw new InvalidOperationException("Concurrent assignment conflicts exceeded the retry limit; retry the same request.");
+    }
 }
-

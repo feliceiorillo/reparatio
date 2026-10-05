@@ -68,7 +68,7 @@ public class OpenRepairTests
     [Fact]
     public async Task Concurrent_openings_balance_load_and_concurrent_retries_are_idempotent()
     {
-        var store = new Store();
+        var store = new Store { InitialReaders = 3 };
         var command = Command();
         var handler = Handler(store);
         await Task.WhenAll(handler.HandleAsync(command), handler.HandleAsync(command), handler.HandleAsync(Command()));
@@ -110,6 +110,8 @@ public class OpenRepairTests
     {
         private readonly object gate = new();
         private long version;
+        private readonly TaskCompletionSource initialReads = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public int InitialReaders { get; init; }
         public int Reads { get; private set; }
         public int CommitAttempts { get; private set; }
         public int ConflictsRemaining { get; set; }
@@ -126,7 +128,11 @@ public class OpenRepairTests
                 snapshot = new(version, Candidates.ToArray(), Receipts.SingleOrDefault(r =>
                     r.Command.TenantId == command.TenantId && r.Command.RequestId == command.RequestId));
             }
-            await Task.Yield(); // Allows several callers to read the same version before any commits.
+            if (InitialReaders > 0)
+            {
+                lock (gate) { if (Reads >= InitialReaders) initialReads.TrySetResult(); }
+                await initialReads.Task.WaitAsync(cancellationToken);
+            }
             cancellationToken.ThrowIfCancellationRequested();
             return snapshot;
         }
