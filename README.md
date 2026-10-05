@@ -1,31 +1,34 @@
 # Reparatio
 
 SaaS multi tenant per negozi di riparazione smartphone.
+Progetto locale: C:\Users\felice\Documents\Codex\reparatio.
 
 ## Stato
 
-Prima implementazione del dominio Repairs: apertura e selezione automatica del tecnico.
-.NET 10 LTS; test xUnit. Frontend Angular, SQL Server, servizi e infrastruttura non ancora implementati.
+Dominio .NET 10: assegnazione, riassegnazione con storico e collaudo.
+Application/CQRS: apertura con controllo accesso, idempotenza e retry concorrenti.
+35 test xUnit. SQL Server, API, Angular e infrastruttura non ancora implementati.
+I contratti Application non sono adattatori di produzione.
 
 ## Verifica
 
-Con SDK .NET 10 installato:
+Con SDK .NET 10:
 
-```sh
-dotnet restore Reparatio.slnx
-dotnet test Reparatio.slnx
+```powershell
+$env:MSBuildEnableWorkloadResolver = 'false'
+dotnet restore Reparatio.slnx --disable-parallel -m:1
+dotnet test Reparatio.slnx --no-restore -m:1
 ```
 
-In questo ambiente manca dotnet e il download del SDK non è raggiungibile.
-I test sono stati scritti prima dell'implementazione ma non sono stati eseguiti:
-non è stato verificato né il RED né il GREEN. Le versioni NuGet dichiarate
-devono ancora essere ripristinate e validate.
+Il 5 ottobre 2026 restore e test sono stati eseguiti sul PC: 35 test superati.
+Nel contesto ristretto di Codex anche le cache CLI/NuGet sono state reindirizzate
+in una cartella scrivibile; vedere docs/STATUS.md per percorso e limiti.
 
-## Navigazione
+## Documentazione
 
-- [Stato del lavoro](docs/STATUS.md)
+- [Stato verificato e prossimi passi](docs/STATUS.md)
 - [Modello di dominio](docs/DOMAIN.md)
 - [Requisiti concordati](docs/REQUIREMENTS.md)
-- [Test](tests/Reparatio.Repairs.Domain.Tests/AssignmentTests.cs)
+- [Brief completo del progetto](docs/PROJECT_BRIEF.md)
 
-Il repository è locale: non è ancora collegato a un remote.
+Repository su main con storico originale conservato, senza remote configurato.

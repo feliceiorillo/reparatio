@@ -19,9 +19,15 @@
 
 ## Proposte da validare nell'implementazione
 - Account cliente trasversale ai negozi, collegamento verificato alle pratiche.
-- Mai assegnati prima degli altri; Guid come ultimo criterio di parità.
+- Coda di lavoro: evitare che pratiche bloccate impediscano le successive.
 - Percentuale congelata sul preventivo, integrazione al netto dei pagamenti.
 - Confini dei bounded context e modalità di incasso per tenant.
 
 Provider di pagamento, routing degli incassi ai tenant, rimborsi e autorizzazioni
 di dettaglio restano da definire prima dell'integrazione dei pagamenti.
+
+## Criteri iniziali confermati
+- Mai assegnati prima degli altri; Guid come ultimo criterio stabile di parità.
+
+Il brief completo del 5 ottobre 2026 è conservato in PROJECT_BRIEF.md;
+le proposte lì indicate non sono decisioni definitive.
