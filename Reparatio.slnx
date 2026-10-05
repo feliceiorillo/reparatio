@@ -1,13 +1,14 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Reparatio.Repairs.Api/Reparatio.Repairs.Api.csproj" />
     <Project Path="src/Reparatio.Repairs.Infrastructure/Reparatio.Repairs.Infrastructure.csproj" />
     <Project Path="src/Reparatio.Repairs.Domain/Reparatio.Repairs.Domain.csproj" />
     <Project Path="src/Reparatio.Repairs.Application/Reparatio.Repairs.Application.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Reparatio.Repairs.Api.Tests/Reparatio.Repairs.Api.Tests.csproj" />
     <Project Path="tests/Reparatio.Repairs.Infrastructure.Tests/Reparatio.Repairs.Infrastructure.Tests.csproj" />
     <Project Path="tests/Reparatio.Repairs.Domain.Tests/Reparatio.Repairs.Domain.Tests.csproj" />
     <Project Path="tests/Reparatio.Repairs.Application.Tests/Reparatio.Repairs.Application.Tests.csproj" />
   </Folder>
 </Solution>
-

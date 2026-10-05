@@ -1,0 +1,17 @@
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<IdentityUser> SignInManager
+<ul>
+@if (SignInManager.IsSignedIn(User))
+{
+    <li><a href="/Identity/Account/Manage">Account</a></li>
+    <li><form method="post" action="/Identity/Account/Logout?returnUrl=%2F">
+        @Html.AntiForgeryToken()
+        <button type="submit">Esci</button>
+    </form></li>
+}
+else
+{
+    <li><a href="/Identity/Account/Login">Accedi</a></li>
+    <li><a href="/Identity/Account/Register">Registrati</a></li>
+}
+</ul>

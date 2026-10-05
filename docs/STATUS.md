@@ -1,5 +1,26 @@
 # Stato del lavoro — 5 ottobre 2026
 
+## API e provider locale completati
+- Provider locale scelto dall'utente: ASP.NET Identity + OpenIddict 7.7.1,
+  Authorization Code con PKCE obbligatorio, HTTPS, client pubblico first party.
+- Nuove migrazioni StaffAuthorization e LocalIdentity applicate al database
+  Reparatio; schema identity separato e secret SQL esistente riutilizzato.
+- Endpoint HTTP per apertura, disponibilità, riassegnazione, collaudo,
+  ritorno al lavoro e lettura; servizi Application e transazioni già presenti.
+- Autorizzazioni persistite: ruoli tenant/sede/tecnico, soggetto+emittente esatti,
+  identità attiva, autore audit fidato. Nessun ruolo nel token concede diritti.
+- API protette da token OpenIddict con audience/scope e verifica registrazione;
+  cookie Identity, codice riutilizzato, callback estranea, PKCE assente e token
+  alterato respinti. Revoca grant verificata anche sul replay di un comando.
+- Cinque nuovi test sul database reale; 88 complessivi passati. La prova HTTP
+  usa login/antiforgery e token reali, controlla carichi e autore storico.
+  I quattro casi ruoli/scope sono verifiche di regressione; nessuna ulteriore
+  affermazione RED/GREEN comportamentale per le autorizzazioni.
+- Certificati e chiavi cookie locali protetti con DPAPI fuori dal repository.
+  SMTP previsto ma consegna reale non verificata; account non confermati non
+  ottengono nuovi token. Nessun account reale o amministratore creato.
+- Dettagli, avvio, permessi, endpoint e limiti in docs/API_AUTH.md.
+
 ## Ambiente e repository
 - Progetto sul PC: C:\Users\felice\Documents\Codex\reparatio.
 - Estratto dall'archivio originale preservando .git e i due commit iniziali su main.
@@ -30,8 +51,8 @@
 
 ## Verificato
 - Restore NuGet e compilazione con warnings as errors.
-- Intera soluzione: 83 test superati, zero falliti, zero ignorati.
-- 41 Domain + 23 Application + 19 integrazione su SQL Server reale.
+- Intera soluzione: 88 test superati, zero falliti, zero ignorati.
+- 41 Domain + 23 Application + 19 integrazione SQL + 5 API/autorizzazioni su SQL reale.
 - SQL: apertura e ricevute persistenti, replay, payload modificato, identificativo
   pratica duplicato, versione superata senza scritture parziali, FIFO, disponibilità.
 - Concorrenza SQL forzata con barriera: doppia richiesta identica e apertura contro
@@ -53,8 +74,8 @@
 - Il primo tentativo di test SQL senza tabelle non è contato come RED comportamentale.
 
 ## Limiti e prossimi passi
-- Autenticazione/autorizzazione reali non implementate: contratti obbligatori in API.
-- Riassegnazione, collaudo e ritorno al lavoro persistiti; restano API e implementazione reale dei contratti di autorizzazione.
+- API e autorizzazioni reali implementate con provider locale Identity/OpenIddict; dettagli in API_AUTH.md.
+- Restano onboarding tenant/sedi, primo titolare e gestione/inviti staff; nessun account reale creato.
 - Ripresa automatica della coda dopo tutte le cause di risveglio: coordinatore/worker
   e outbox ancora da implementare. Il comportamento è eseguito dal comando disponibilità.
 - RepairWorkAuthorization è uno snapshot interno fidato di Quotes/Payments,

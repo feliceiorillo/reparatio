@@ -75,8 +75,26 @@ public sealed class RepairsDbContext(DbContextOptions<RepairsDbContext> options)
 
     public DbSet<RepairTransitionRow> RepairTransitions => Set<RepairTransitionRow>();
 
+    public DbSet<StaffIdentityRow> StaffIdentities => Set<StaffIdentityRow>();
+    public DbSet<StaffGrantRow> StaffGrants => Set<StaffGrantRow>();
+
     protected override void OnModelCreating(ModelBuilder model)
     {
+        var identities = model.Entity<StaffIdentityRow>();
+        identities.Property(u => u.Issuer).HasMaxLength(300);
+        identities.Property(u => u.Subject).HasMaxLength(200);
+        identities.HasIndex(u => new { u.Issuer, u.Subject }).IsUnique();
+        identities.Property(u => u.Issuer).UseCollation("Latin1_General_100_BIN2");
+        identities.Property(u => u.Subject).UseCollation("Latin1_General_100_BIN2");
+        var grants = model.Entity<StaffGrantRow>();
+        grants.ToTable("StaffGrants", t => {
+            t.HasCheckConstraint("CK_StaffGrant_Role", "[Role] BETWEEN 0 AND 3");
+            t.HasCheckConstraint("CK_StaffGrant_Scope", "([Role] = 0 AND [SiteId] IS NULL AND [TechnicianId] IS NULL) OR ([Role] IN (1,2) AND [SiteId] IS NOT NULL AND [TechnicianId] IS NULL) OR ([Role] = 3 AND [SiteId] IS NOT NULL AND [TechnicianId] IS NOT NULL)");
+        });
+        grants.HasOne<StaffIdentityRow>().WithMany().HasForeignKey(g => g.UserId).OnDelete(DeleteBehavior.Restrict);
+        grants.HasOne<SiteRow>().WithMany().HasForeignKey(g => new { g.TenantId, g.SiteId }).OnDelete(DeleteBehavior.Restrict);
+        grants.HasOne<TechnicianRow>().WithMany().HasForeignKey(g => new { g.TenantId, g.SiteId, Id = g.TechnicianId }).OnDelete(DeleteBehavior.Restrict);
+        grants.HasIndex(g => new { g.UserId, g.TenantId, g.SiteId });
         var sites = model.Entity<SiteRow>();
         sites.ToTable("Sites", t => { t.HasCheckConstraint("CK_Site_Version", "[Version] >= 0"); t.HasCheckConstraint("CK_Site_Sequence", "[NextArrivalSequence] > 0"); });
         sites.HasKey(s => new { s.TenantId, s.SiteId });

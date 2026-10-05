@@ -15,8 +15,16 @@ try {
     dotnet build Reparatio.slnx --no-restore -m:1
     if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
     switch ($Action) {
-        'Update' { dotnet ef database update --project src/Reparatio.Repairs.Infrastructure --no-build }
-        'Script' { dotnet ef migrations script --idempotent --project src/Reparatio.Repairs.Infrastructure --no-build --output scripts/repairs-schema.sql }
+        'Update' {
+            dotnet ef database update --project src/Reparatio.Repairs.Infrastructure --no-build
+            if ($LASTEXITCODE -ne 0) { throw 'Repairs migration failed.' }
+            dotnet ef database update --project src/Reparatio.Repairs.Api --context IdentityStore --no-build
+        }
+        'Script' {
+            dotnet ef migrations script --idempotent --project src/Reparatio.Repairs.Infrastructure --no-build --output scripts/repairs-schema.sql
+            if ($LASTEXITCODE -ne 0) { throw 'Repairs script failed.' }
+            dotnet ef migrations script --idempotent --project src/Reparatio.Repairs.Api --context IdentityStore --no-build --output scripts/identity-schema.sql
+        }
         'AddMigration' {
             if ([string]::IsNullOrWhiteSpace($Name)) { throw 'Migration name is required.' }
             dotnet ef migrations add $Name --project src/Reparatio.Repairs.Infrastructure --no-build

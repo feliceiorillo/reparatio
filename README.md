@@ -9,8 +9,10 @@ Dominio .NET 10: assegnazione, riassegnazione con storico e collaudo.
 Application/CQRS: apertura, disponibilità, riassegnazione, collaudo e ritorno al lavoro con controllo accesso, idempotenza e retry.
 Persistenza Code First EF Core 10.0.12 / SQL Server: migrazione InitialRepairs applicata
 al database Reparatio, insieme a RepairLifecycleAudit. Apertura, disponibilità, riassegnazione e collaudo salvati in transazioni atomiche, con storico e carichi.
-83 test xUnit superati: 41 Domain, 23 Application, 19 SQL Server reali.
-API, autenticazione reale, Angular e workflow completo ancora da implementare.
+88 test xUnit superati: 41 Domain, 23 Application, 19 SQL Server e 5 API/autorizzazioni sul database reale.
+API collegate ai servizi Application; provider locale ASP.NET Identity + OpenIddict
+con Authorization Code e PKCE, Bearer e permessi tenant/sede/tecnico persistiti.
+Restano onboarding/gestione staff, Angular, configurazione SMTP e workflow completo.
 
 ## Verifica
 
@@ -31,6 +33,7 @@ Le credenziali non sono salvate nei file del progetto.
 - [Stato verificato e prossimi passi](docs/STATUS.md)
 - [Modello di dominio](docs/DOMAIN.md)
 - [Persistenza Code First](docs/PERSISTENCE.md)
+- [API, provider locale e autorizzazioni](docs/API_AUTH.md)
 - [Requisiti concordati](docs/REQUIREMENTS.md)
 - [Brief completo del progetto](docs/PROJECT_BRIEF.md)
 
