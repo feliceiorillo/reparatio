@@ -22,8 +22,7 @@ dotnet restore Reparatio.slnx --disable-parallel -m:1
 dotnet test Reparatio.slnx --no-restore -m:1
 ```
 
-I test SQL richiedono REPARATIO_SQL_CONNECTION nel processo: senza quella variabile
-vengono dichiarati ignorati, non superati. Per migrare e verificare con database reale,
+I test SQL leggono automaticamente il secret locale cifrato. REPARATIO_SQL_CONNECTION è un override opzionale; senza entrambe le fonti i test SQL risultano ignorati. Per migrare e verificare con database reale,
 vedere [persistenza e comandi riproducibili](docs/PERSISTENCE.md).
 Le credenziali non sono salvate nei file del progetto.
 

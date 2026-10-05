@@ -1,9 +1,8 @@
 # SQL Server — Code First
 
 EF Core SqlServer/Design e dotnet-ef 10.0.12, fissati nei progetti e nel manifesto.
-Nessuna stringa con credenziali è salvata nel repository. Il contesto usa
-REPARATIO_SQL_CONNECTION; il design-time ha un fallback locale Windows senza password
-per generare migrazioni, che non sostituisce la connessione effettiva per l'aggiornamento.
+La configurazione condivisa SqlConnectionSettings legge prima REPARATIO_SQL_CONNECTION,
+altrimenti il secret locale cifrato. Tests e design-time usano lo stesso lettore.
 
 ## Database verificato
 Server: WIN-796T11TJJRG\SQLEXPRESS. Database: Reparatio, login dedicato reparatio.
@@ -11,7 +10,7 @@ Il nome dell'istanza non è stato risolto durante la verifica: connessione riusc
 con Server=tcp:127.0.0.1,62081 e Database=Reparatio. La porta è dinamica e può cambiare
 al riavvio: non viene fissata nel codice. TLS e TrustServerCertificate sono mantenuti
 come richiesto. Persist Security Info=False; timeout finiti 15/30 secondi per evitare
-attese infinite; MARS disabilitato. Le credenziali sono rimaste solo nei processi.
+attese infinite; MARS disabilitato. Su richiesta dell'utente, le credenziali sono ora salvate nel secret locale cifrato, fuori dal repository.
 
 ## Migrazioni
 Prima migrazione: InitialRepairs (20261005055013), applicata al database già creato.
@@ -19,8 +18,7 @@ Tabelle: Sites, Technicians, Repairs, Receipts, Reassignments e __EFMigrationsHi
 Sono presenti chiavi composte tenant/sede, foreign key senza cancellazione a cascata,
 vincoli di carico/stato/assegnazione e indici univoci per ordine di arrivo e ricevute.
 
-Impostare REPARATIO_SQL_CONNECTION nel processo corrente con un metodo sicuro,
-poi dalla cartella del progetto:
+Con il secret locale già configurato, dalla cartella del progetto:
 
 ```powershell
 .\scripts\database.ps1 -Action Update
@@ -37,8 +35,7 @@ Per una nuova modifica al modello:
 Rivedere sempre la nuova migrazione prima di applicarla. AddMigration genera i file;
 l'azione Update ricompila includendo la migrazione prima di aggiornarne il database.
 Lo script usa cache locali escluse da Git. Il manifesto dotnet-tools.json conserva
-la versione del tool; non serve un'installazione globale. I test SQL richiedono schema
-già migrato: senza variabile di connessione vengono esplicitamente ignorati.
+la versione del tool; non serve un'installazione globale. I test SQL richiedono schema già migrato. Se mancano sia secret sia variabile d'ambiente, vengono esplicitamente ignorati.
 
 ## Transazioni e isolamento
 SqlRepairStore implementa entrambi i contratti Application. Ogni commit acquisisce
@@ -61,3 +58,18 @@ utente reale inserito. La tabella dello storico è predisposta ma riassegnazione
 collaudo non hanno ancora comandi di persistenza. Ogni futuro scrittore del carico
 deve utilizzare lo stesso protocollo di versione. API, worker/outbox e autenticazione
 restano da integrare; nessun endpoint espone il DbContext al client.
+
+## Secret locale Windows
+Percorso predefinito: C:\Users\felice\Documents\Codex\.secrets\reparatio\sql.dpapi.
+Il file è cifrato con Windows DPAPI CurrentUser: richiede lo stesso utente Windows.
+Non è incluso nel repository. Nessuna password è incorporata in sorgenti o script.
+REPARATIO_SQL_SECRET_PATH permette un percorso alternativo; REPARATIO_SQL_CONNECTION
+ha precedenza per CI/ambienti diversi da Windows. Un secret non decifrabile fa fallire
+la configurazione con messaggio senza credenziali: non viene ignorato silenziosamente.
+
+Per ricreare/aggiornare il secret, usare scripts/set-sql-secret.ps1; la password viene
+richiesta con input nascosto. Server, Database, UserName e Path sono parametri opzionali.
+Il percorso standard .NET User Secrets del profilo non era scrivibile nel sandbox;
+è stato usato questo percorso autorizzato con cifratura Windows, senza protocolli custom.
+Test verificati con REPARATIO_SQL_CONNECTION assente: 60 superati, inclusi 9 SQL,
+zero ignorati. Anche la factory design-time legge il secret automaticamente.

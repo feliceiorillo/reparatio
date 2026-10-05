@@ -10,8 +10,8 @@ public sealed class SqlFactAttribute : FactAttribute
 {
     public SqlFactAttribute()
     {
-        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("REPARATIO_SQL_CONNECTION")))
-            Skip = "Set REPARATIO_SQL_CONNECTION to run against a migrated SQL Server database.";
+        if (string.IsNullOrWhiteSpace(SqlConnectionSettings.ReadOptional()))
+            Skip = "Configure the local SQL secret or REPARATIO_SQL_CONNECTION to run SQL integration tests.";
     }
 }
 
@@ -191,7 +191,7 @@ public class SqlRepairStoreTests
         public Guid Tenant { get; } = Guid.NewGuid();
         public Guid Site { get; } = Guid.NewGuid();
         public Guid Technician { get; } = Guid.NewGuid();
-        public RepairsDbContextFactory Factory { get; } = new(Environment.GetEnvironmentVariable("REPARATIO_SQL_CONNECTION")!);
+        public RepairsDbContextFactory Factory { get; } = new(SqlConnectionSettings.ReadRequired());
         public SqlRepairStore Store => new(Factory);
         public OpenRepairCommand OpenCommand() => new(Guid.NewGuid(), Guid.NewGuid(), Tenant, Site);
         public SetTechnicianAvailabilityCommand AvailabilityCommand() => new(Guid.NewGuid(), Tenant, Site, Technician, true);

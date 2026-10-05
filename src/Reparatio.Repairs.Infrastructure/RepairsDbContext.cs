@@ -99,8 +99,7 @@ public sealed class RepairsDesignTimeFactory : IDesignTimeDbContextFactory<Repai
 {
     public RepairsDbContext CreateDbContext(string[] args)
     {
-        var connection = Environment.GetEnvironmentVariable("REPARATIO_SQL_CONNECTION")
-            ?? "Server=localhost;Database=Reparatio;Integrated Security=True;Encrypt=True;TrustServerCertificate=True";
+        var connection = SqlConnectionSettings.ReadRequired();
         return new RepairsDbContextFactory(connection).CreateDbContext();
     }
 }

@@ -9,7 +9,7 @@
 - SQL Server 17.0.1000.7, WIN-796T11TJJRG\SQLEXPRESS.
 - Database Reparatio già creato dall'utente; nuovo login dedicato con db_owner.
 - Connessione riuscita via TCP 127.0.0.1:62081; nome istanza non risolto nel contesto.
-- Credenziali fornite usate nei processi, non salvate nei file o nei commit.
+- Su richiesta dell'utente, credenziali salvate nel secret locale DPAPI, fuori dal repository e dai commit.
 
 ## Implementato
 - Policy tecnica per tenant/sede, minor carico, rotazione e Guid stabile.
@@ -69,3 +69,12 @@
 - Nessuna decisione definitiva su account cliente globale o provider pagamenti.
 
 Per i comandi e lo schema vedere docs/PERSISTENCE.md.
+
+## Secret locale e test automatici
+- Secret cifrato per l'utente Windows in Documents\Codex\.secrets\reparatio\sql.dpapi.
+- SqlConnectionSettings condiviso da test e factory EF design-time; variabile di
+  connessione opzionale con precedenza, percorso alternativo tramite variabile dedicata.
+- script database.ps1 non richiede più di impostare manualmente la connessione.
+- script set-sql-secret.ps1 aggiorna il secret con password richiesta a input nascosto.
+- Verificata intera soluzione con connessione assente dall'ambiente: 60 test superati,
+  inclusi i nove SQL, nessuno ignorato.

@@ -2,13 +2,10 @@ param([ValidateSet('Update','Script','Test','AddMigration')][string]$Action = 'T
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $env:MSBuildEnableWorkloadResolver = 'false'
-$env:DOTNET_CLI_HOME = Join-Path $projectRoot '.local\dotnet'
-$env:NUGET_PACKAGES = Join-Path $projectRoot '.local\nuget'
-$env:NUGET_HTTP_CACHE_PATH = Join-Path $projectRoot '.local\nuget-http'
-$env:NUGET_PLUGINS_CACHE_PATH = Join-Path $projectRoot '.local\nuget-plugins'
-if (($Action -eq 'Update' -or $Action -eq 'Test') -and [string]::IsNullOrWhiteSpace($env:REPARATIO_SQL_CONNECTION)) {
-    throw 'Set REPARATIO_SQL_CONNECTION in the current process. No credentials are saved by this script.'
-}
+if (-not $env:DOTNET_CLI_HOME) { $env:DOTNET_CLI_HOME = Join-Path $projectRoot '.local\dotnet' }
+if (-not $env:NUGET_PACKAGES) { $env:NUGET_PACKAGES = Join-Path $projectRoot '.local\nuget' }
+if (-not $env:NUGET_HTTP_CACHE_PATH) { $env:NUGET_HTTP_CACHE_PATH = Join-Path $projectRoot '.local\nuget-http' }
+if (-not $env:NUGET_PLUGINS_CACHE_PATH) { $env:NUGET_PLUGINS_CACHE_PATH = Join-Path $projectRoot '.local\nuget-plugins' }
 Push-Location $projectRoot
 try {
     dotnet restore Reparatio.slnx --disable-parallel -m:1
