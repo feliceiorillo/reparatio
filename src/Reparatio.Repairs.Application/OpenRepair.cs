@@ -6,7 +6,7 @@ public sealed record OpenRepairCommand(Guid RequestId, Guid RepairId, Guid Tenan
 public sealed record OpenRepairResult(Guid RepairId, Guid? TechnicianId, RepairStatus Status);
 public sealed record OpeningReceipt(OpenRepairCommand Command, OpenRepairResult Result);
 public sealed record AssignmentSnapshot(long Version, IReadOnlyList<TechnicianCandidate> Candidates,
-    OpeningReceipt? Receipt);
+    OpeningReceipt? Receipt, int WaitingRepairCount = 0);
 
 public interface IRepairAccess
 {
@@ -54,3 +54,4 @@ public sealed class OpenRepairHandler(IRepairAccess access, IRepairOpeningStore 
         throw new InvalidOperationException("Concurrent assignment conflicts exceeded the retry limit; retry the same request.");
     }
 }
+

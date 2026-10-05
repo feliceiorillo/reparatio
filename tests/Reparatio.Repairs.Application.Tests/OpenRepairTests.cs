@@ -96,6 +96,16 @@ public class OpenRepairTests
         Assert.Single(store.Receipts);
     }
 
+    [Fact]
+    public async Task New_arrival_cannot_overtake_existing_waiting_repairs()
+    {
+        var store = new Store { WaitingRepairCount = 1 };
+        var result = await Handler(store).HandleAsync(Command());
+        Assert.Null(result.TechnicianId);
+        Assert.Equal(RepairStatus.WaitingForAssignment, result.Status);
+        Assert.Equal(0, store.Candidates.Sum(t => t.ActiveRepairCount));
+    }
+
     private sealed class Access(bool allow) : IRepairAccess
     {
         public Task EnsureCanReceiveAsync(Guid tenantId, Guid siteId, CancellationToken cancellationToken)
@@ -112,6 +122,7 @@ public class OpenRepairTests
         private long version;
         private readonly TaskCompletionSource initialReads = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public int InitialReaders { get; init; }
+        public int WaitingRepairCount { get; init; }
         public int Reads { get; private set; }
         public int CommitAttempts { get; private set; }
         public int ConflictsRemaining { get; set; }
@@ -126,7 +137,7 @@ public class OpenRepairTests
             {
                 Reads++;
                 snapshot = new(version, Candidates.ToArray(), Receipts.SingleOrDefault(r =>
-                    r.Command.TenantId == command.TenantId && r.Command.RequestId == command.RequestId));
+                    r.Command.TenantId == command.TenantId && r.Command.RequestId == command.RequestId), WaitingRepairCount);
             }
             if (InitialReaders > 0)
             {
@@ -161,3 +172,4 @@ public class OpenRepairTests
         }
     }
 }
+
