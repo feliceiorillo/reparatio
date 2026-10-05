@@ -127,6 +127,42 @@ public class SqlRepairStoreTests
         Assert.Equal(1, (await db.Sites.SingleAsync(s => s.TenantId == data.Tenant)).Version);
     }
 
+    [SqlFact]
+    public async Task Reads_are_isolated_from_other_tenants_and_sites()
+    {
+        await using var data = await Data.CreateAsync(true);
+        await using var foreign = await Data.CreateAsync(true);
+        var otherSite = Guid.NewGuid();
+        var otherTechnician = Guid.NewGuid();
+        await using (var db = data.Factory.CreateDbContext())
+        {
+            db.Sites.Add(new() { TenantId = data.Tenant, SiteId = otherSite });
+            db.Technicians.Add(new() { TenantId = data.Tenant, SiteId = otherSite, Id = otherTechnician, IsAvailable = true });
+            await db.SaveChangesAsync();
+        }
+        var snapshot = await data.Store.ReadAsync(data.OpenCommand(), default);
+        Assert.Equal(data.Technician, Assert.Single(snapshot.Candidates).Id);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => data.Store.ReadAsync(
+            data.OpenCommand() with { TenantId = foreign.Tenant }, default));
+        await using var invalid = data.Factory.CreateDbContext();
+        invalid.Repairs.Add(new() { TenantId = data.Tenant, SiteId = data.Site, Id = Guid.NewGuid(),
+            TechnicianId = otherTechnician, Status = RepairStatus.AwaitingDiagnosis, ArrivalSequence = 1, OpenedAt = DateTimeOffset.UtcNow });
+        await Assert.ThrowsAsync<DbUpdateException>(() => invalid.SaveChangesAsync());
+    }
+
+    [SqlFact]
+    public async Task Database_rejects_negative_workload()
+    {
+        await using var data = await Data.CreateAsync(true);
+        await using (var db = data.Factory.CreateDbContext())
+        {
+            var technician = await db.Technicians.SingleAsync(t => t.TenantId == data.Tenant);
+            technician.ActiveRepairCount = -1;
+            await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        }
+        await using var read = data.Factory.CreateDbContext();
+        Assert.Equal(0, (await read.Technicians.SingleAsync(t => t.TenantId == data.Tenant)).ActiveRepairCount);
+    }
     private sealed class Access : IRepairAccess, ITechnicianAvailabilityAccess
     {
         public Task EnsureCanReceiveAsync(Guid tenantId, Guid siteId, CancellationToken cancellationToken) => Task.CompletedTask;
@@ -182,4 +218,3 @@ public class SqlRepairStoreTests
         }
     }
 }
-
