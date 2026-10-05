@@ -37,6 +37,8 @@ public sealed class Repair
     private readonly List<TechnicianReassignment> reassignments = [];
     public IReadOnlyList<TechnicianReassignment> Reassignments => reassignments.AsReadOnly();
 
+    public void AssignWaiting(TechnicianCandidate technician) => throw new NotImplementedException();
+
     public void Reassign(TechnicianCandidate technician, Guid actorId,
         DateTimeOffset occurredAt, string reason)
     {
@@ -103,4 +105,5 @@ public sealed class Repair
             TechnicianAssignmentPolicy.Select(tenantId, siteId, candidates));
     }
 }
+
 
