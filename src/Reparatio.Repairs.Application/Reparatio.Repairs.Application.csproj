@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup><ProjectReference Include="../Reparatio.Repairs.Domain/Reparatio.Repairs.Domain.csproj" /></ItemGroup>
+</Project>
