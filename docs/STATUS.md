@@ -22,7 +22,7 @@
 - Restore NuGet riuscito e 17 test originali superati prima delle modifiche.
 - Dominio: nuovi test prima del codice; RED di compilazione per API assente, poi GREEN.
 - Application: otto test eseguiti e falliti con handler non implementato (RED), poi GREEN.
-- Totale corrente: 27 casi Domain + 8 Application = 35 test superati, nessuno ignorato.
+- Totale corrente: 35 casi Domain + 16 Application = 51 test superati, nessuno ignorato.
 - Test concorrente con barriera: tre richieste leggono la stessa versione prima dei commit;
   due aperture distinte bilanciano il carico; ripetizione della stessa richiesta non duplica.
 - La verifica usa un adattatore di storage soltanto nei test: nessuna garanzia SQL verificata.
@@ -44,7 +44,33 @@ C:\Users\felice\Documents\Codex\2026-10-05\hai\work.
   e l'aggiornamento atomico dei carichi nella riassegnazione restano in Application.
 - SQL Server/EF Core: implementare tutti gli scrittori secondo il protocollo di versione
   tenant/sede, vincoli univoci e transazioni; verificare concorrenza su database reale.
-- FIFO, assegnazione al ritorno di disponibilità, diagnosi dettagliata, preventivi,
+- Persistenza della coda e collegamento del comando disponibilità alla futura API; diagnosi dettagliata, preventivi,
   rifiuti, pagamenti, ritiro, API, frontend e demo ancora da implementare.
 - Nessuna decisione su provider pagamenti o identità globale cliente è stata presa.
 - Brief completo conservato in docs/PROJECT_BRIEF.md, con proposte distinte dai requisiti.
+
+## Incremento: coda e disponibilità
+- Repair.AssignWaiting consente la prima assegnazione soltanto in WaitingForAssignment;
+  verifica tenant, sede e disponibilità, senza creare una falsa riassegnazione.
+- WaitingAssignmentPolicy pianifica in FIFO mediante ArrivalSequence positivo e univoco
+  nella sede. Ordina input non ordinati, isola tenant/sedi, respinge duplicati e aggiorna
+  carico e ultima assegnazione tra una scelta e la successiva senza mutare gli input.
+- SetTechnicianAvailabilityHandler autorizza il responsabile tramite un contratto,
+  cambia disponibilità e pianifica automaticamente la coda nello stesso commit atomico.
+  Idempotenza, payload invariato, cancellazione e cinque retry su conflitto.
+- Apertura con pratiche già in coda: accoda la nuova pratica anche se esiste un tecnico
+  disponibile, impedendo il sorpasso. Il futuro coordinatore deve riattivare lo smaltimento
+  anche dopo apertura, variazioni di carico e recupero di operazioni fallite.
+- Nessun limite massimo di carico introdotto: tutti i tecnici eleggibili partecipano e
+  tutte le pratiche pendenti sono distribuite quando almeno un tecnico è disponibile.
+- Pratiche assegnate in attesa di cliente/acconto/ricambio non fanno parte della coda
+  di prima assegnazione; continuano a contare nel carico come già confermato.
+- RED osservato: otto test Domain falliti, sette disponibilità falliti e un test
+  sorpasso FIFO fallito. GREEN: intera soluzione, 51 superati e zero ignorati.
+- Il runner necessita di comunicazione di rete locale; in questo turno è stata
+  autorizzata. Il tentativo precedente bloccato è stato interrotto, non contato.
+- Verifica concorrente della disponibilità con due snapshot della stessa versione:
+  nessuna doppia assegnazione. Apertura e disponibilità sono testate separatamente;
+  concorrenza incrociata e transazioni reali sono da verificare con SQL Server.
+- Nessun adattatore di persistenza né worker/API attivo: il comando è pronto per
+  l'integrazione; il comportamento automatico è verificato a livello Application.

@@ -48,3 +48,26 @@ per autenticazione, JWT e autorizzazione; RabbitMQ per eventi tra contesti con o
 transazionale; Notifications per email; Redis soltanto per cache/dati temporanei,
 mai fonte autorevole per carico o incassi. Docker per ambienti ripetibili, Kubernetes
 quando esisteranno servizi da distribuire. Nessuna integrazione aggiunta ora.
+
+## Coda FIFO e disponibilità
+ArrivalSequence viene allocato monotonico e univoco nella sede dalla transazione
+che apre la pratica; non viene scelto dal client. Snapshot e conteggio delle pratiche
+in attesa devono essere letti nella stessa versione dell'assegnazione.
+Le nuove aperture non superano una coda esistente. L'adattatore dovrà inserire la
+pratica nella coda e attivare il coordinatore per evitarne lo stallo.
+WaitingAssignmentPolicy produce un piano senza mutare aggregati persistiti; tiene
+conto del carico aggiornato dopo ogni scelta. Pratiche in attesa di ricambio, cliente
+o acconto già assegnate non bloccano questa coda e restano incluse nel carico.
+
+Il comando SetTechnicianAvailability cambia la disponibilità e applica il piano
+nella stessa transazione. Un conflitto non deve lasciare effetti parziali. Tutti gli
+scrittori condividono la versione tenant/sede usata da OpenRepair. Persistenza e
+concorrenza incrociata saranno provate con SQL Server, non con EF InMemory.
+Le ricevute sono distinte per tenant, tipo di comando e RequestId; il payload deve
+restare identico. Disponibilità falsa non azzera il carico delle pratiche assegnate.
+I contratti di autorizzazione sono punti di integrazione per l'identità autenticata,
+non implementazioni complete dei permessi.
+
+Il coordinatore futuro va chiamato dopo disponibilità, aperture che trovano coda,
+variazioni di carico e recupero; eventi persistiti/outbox renderanno affidabile il
+risveglio. Non esiste ancora un processo eseguibile in background.
