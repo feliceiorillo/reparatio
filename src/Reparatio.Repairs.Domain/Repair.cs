@@ -114,6 +114,3 @@ public sealed class Repair
             TechnicianAssignmentPolicy.Select(tenantId, siteId, candidates));
     }
 }
-
-
-
