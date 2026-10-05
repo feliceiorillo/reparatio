@@ -37,8 +37,27 @@ public sealed class Repair
     private readonly List<TechnicianReassignment> reassignments = [];
     public IReadOnlyList<TechnicianReassignment> Reassignments => reassignments.AsReadOnly();
 
-    public RepairState Snapshot() => throw new NotImplementedException();
-    public static Repair Restore(RepairState state) => throw new NotImplementedException();
+    public RepairState Snapshot() => new(Id, TenantId, SiteId, TechnicianId, Status, Array.AsReadOnly(reassignments.ToArray()));
+    public static Repair Restore(RepairState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(state.Reassignments);
+        if (state.Id == Guid.Empty || state.TenantId == Guid.Empty || state.SiteId == Guid.Empty
+            || state.TechnicianId == Guid.Empty || !Enum.IsDefined(state.Status)
+            || (state.Status == RepairStatus.WaitingForAssignment) != (state.TechnicianId is null))
+            throw new ArgumentException("Persisted repair state is inconsistent.", nameof(state));
+        return new Repair(state);
+    }
+
+    private Repair(RepairState state)
+    {
+        Id = state.Id;
+        TenantId = state.TenantId;
+        SiteId = state.SiteId;
+        TechnicianId = state.TechnicianId;
+        Status = state.Status;
+        reassignments.AddRange(state.Reassignments);
+    }
 
     public void AssignWaiting(TechnicianCandidate technician)
     {
@@ -117,4 +136,5 @@ public sealed class Repair
             TechnicianAssignmentPolicy.Select(tenantId, siteId, candidates));
     }
 }
+
 

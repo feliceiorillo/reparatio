@@ -45,6 +45,82 @@ public interface IRepairLifecycleStore
 }
 public sealed class RepairLifecycleHandler(IRepairLifecycleAccess access, IRepairLifecycleStore store, TimeProvider clock)
 {
-    public Task<RepairLifecycleResult> HandleAsync(RepairLifecycleCommand command, CancellationToken token = default)
-        => Task.FromException<RepairLifecycleResult>(new NotImplementedException($"{access}/{store}/{clock}"));
+    public async Task<RepairLifecycleResult> HandleAsync(RepairLifecycleCommand command, CancellationToken token = default)
+    {
+        RepairLifecycleBehavior.Validate(command);
+        token.ThrowIfCancellationRequested();
+        var actor = command switch
+        {
+            ReassignRepairCommand => await access.EnsureCanReassignAsync(command.TenantId, command.SiteId, command.RepairId, token),
+            SubmitRepairForTestingCommand or RecordRepairTestingCommand => await access.EnsureCanTestAsync(command.TenantId, command.SiteId, command.RepairId, token),
+            ReturnRepairToWorkCommand => await access.EnsureCanReturnToWorkAsync(command.TenantId, command.SiteId, command.RepairId, token),
+            _ => throw new ArgumentException("Unsupported repair command.", nameof(command))
+        };
+        if (actor == Guid.Empty) throw new UnauthorizedAccessException("An authenticated actor is required.");
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            token.ThrowIfCancellationRequested();
+            var snapshot = await store.ReadAsync(command, token);
+            if (snapshot.Receipt is { } receipt)
+            {
+                if (receipt.Command != command) throw new InvalidOperationException("Request identifier was reused with another payload.");
+                return receipt.Result;
+            }
+            var state = snapshot.Repair ?? throw new InvalidOperationException("Repair does not belong to this tenant and site.");
+            var repair = Repair.Restore(state);
+            var at = clock.GetUtcNow();
+            RepairLifecycleBehavior.Apply(repair, command, snapshot.Candidates, actor, at);
+            if (await store.TryCommitAsync(command, snapshot.Version, repair.Snapshot(), actor, at, token))
+                return new(repair.Id, repair.TechnicianId, repair.Status);
+        }
+        throw new InvalidOperationException("Concurrent repair conflicts exceeded the retry limit; retry the same request.");
+    }
+}
+
+// Shared pure translator used by Application and by persistence to revalidate the plan under the site lock.
+public static class RepairLifecycleBehavior
+{
+    public static void Validate(RepairLifecycleCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        if (command.RequestId == Guid.Empty || command.TenantId == Guid.Empty || command.SiteId == Guid.Empty || command.RepairId == Guid.Empty)
+            throw new ArgumentException("All identifiers are required.", nameof(command));
+        switch (command)
+        {
+            case ReassignRepairCommand c:
+                if (c.TechnicianId == Guid.Empty) throw new ArgumentException("Target technician is required.");
+                Reason(c.Reason, 1000);
+                break;
+            case ReturnRepairToWorkCommand c: Reason(c.Reason, 2000); break;
+            case RecordRepairTestingCommand c:
+                if (c.Notes?.Length > 2000) throw new ArgumentException("Testing notes are limited to 2000 characters.");
+                break;
+            case SubmitRepairForTestingCommand: break;
+            default: throw new ArgumentException("Unsupported repair command.", nameof(command));
+        }
+    }
+    private static void Reason(string reason, int maxLength)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        if (reason.Trim().Length > maxLength) throw new ArgumentException($"Reason is limited to {maxLength} characters.");
+    }
+    public static void Apply(Repair repair, RepairLifecycleCommand command,
+        IReadOnlyList<TechnicianCandidate> candidates, Guid actorId, DateTimeOffset at)
+    {
+        Validate(command);
+        if (actorId == Guid.Empty) throw new ArgumentException("Authenticated actor is required.", nameof(actorId));
+        if (repair.Id != command.RepairId || repair.TenantId != command.TenantId || repair.SiteId != command.SiteId)
+            throw new InvalidOperationException("Repair does not belong to this command scope.");
+        switch (command)
+        {
+            case ReassignRepairCommand c:
+                var technician = candidates.SingleOrDefault(t => t.Id == c.TechnicianId && t.TenantId == c.TenantId && t.SiteId == c.SiteId)
+                    ?? throw new InvalidOperationException("Target technician does not belong to this tenant and site.");
+                repair.Reassign(technician, actorId, at, c.Reason);
+                break;
+            case SubmitRepairForTestingCommand: repair.SubmitForTesting(); break;
+            case RecordRepairTestingCommand c: repair.RecordTesting(c.Passed); break;
+            case ReturnRepairToWorkCommand: repair.ReturnToWork(); break;
+        }
+    }
 }
