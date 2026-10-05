@@ -71,3 +71,11 @@ non implementazioni complete dei permessi.
 Il coordinatore futuro va chiamato dopo disponibilità, aperture che trovano coda,
 variazioni di carico e recupero; eventi persistiti/outbox renderanno affidabile il
 risveglio. Non esiste ancora un processo eseguibile in background.
+
+## Persistenza Code First implementata
+La sezione precedente descriveva il passaggio ancora da fare: SqlRepairStore ora
+implementa apertura e disponibilità su SQL Server. InitialRepairs è applicata al
+database Reparatio; nove test di integrazione verificano anche concorrenza incrociata,
+isolamento e vincoli del database. Vedere PERSISTENCE.md per schema e comandi.
+Riassegnazione e collaudo restano comportamenti del dominio in attesa dei rispettivi
+comandi di persistenza; tutti i futuri scrittori devono acquisire il gate della sede.

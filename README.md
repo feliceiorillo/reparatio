@@ -6,13 +6,15 @@ Progetto locale: C:\Users\felice\Documents\Codex\reparatio.
 ## Stato
 
 Dominio .NET 10: assegnazione, riassegnazione con storico e collaudo.
-Application/CQRS: apertura e disponibilità tecnici con FIFO, controllo accesso, idempotenza e retry concorrenti.
-51 test xUnit. SQL Server, API, Angular e infrastruttura non ancora implementati.
-I contratti Application non sono adattatori di produzione.
+Application/CQRS: apertura e disponibilità con FIFO, accesso, idempotenza e retry.
+Persistenza Code First EF Core 10.0.12 / SQL Server: migrazione InitialRepairs applicata
+al database Reparatio. Apertura e disponibilità salvate in transazioni atomiche.
+60 test xUnit superati: 35 Domain, 16 Application, 9 SQL Server reali.
+API, autenticazione reale, Angular e workflow completo ancora da implementare.
 
 ## Verifica
 
-Con SDK .NET 10:
+Con SDK .NET 10 e schema già migrato:
 
 ```powershell
 $env:MSBuildEnableWorkloadResolver = 'false'
@@ -20,14 +22,16 @@ dotnet restore Reparatio.slnx --disable-parallel -m:1
 dotnet test Reparatio.slnx --no-restore -m:1
 ```
 
-Il 5 ottobre 2026 restore e test sono stati eseguiti sul PC: 51 test superati.
-Nel contesto ristretto di Codex anche le cache CLI/NuGet sono state reindirizzate
-in una cartella scrivibile; vedere docs/STATUS.md per percorso e limiti.
+I test SQL richiedono REPARATIO_SQL_CONNECTION nel processo: senza quella variabile
+vengono dichiarati ignorati, non superati. Per migrare e verificare con database reale,
+vedere [persistenza e comandi riproducibili](docs/PERSISTENCE.md).
+Le credenziali non sono salvate nei file del progetto.
 
 ## Documentazione
 
 - [Stato verificato e prossimi passi](docs/STATUS.md)
 - [Modello di dominio](docs/DOMAIN.md)
+- [Persistenza Code First](docs/PERSISTENCE.md)
 - [Requisiti concordati](docs/REQUIREMENTS.md)
 - [Brief completo del progetto](docs/PROJECT_BRIEF.md)
 

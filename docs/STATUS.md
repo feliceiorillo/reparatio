@@ -1,76 +1,71 @@
 # Stato del lavoro — 5 ottobre 2026
 
-## Repository sul PC
-- Percorso reale Documenti: C:\Users\felice\Documents.
-- Progetto estratto da reparatio.zip in C:\Users\felice\Documents\Codex\reparatio.
-- .git e i due commit originali su main conservati; archivio originale non modificato.
-- Nessun progetto preesistente o AGENTS.md trovato nei percorsi controllati.
-- SDK selezionato 10.0.401, eseguibile C:\Program Files\dotnet\dotnet.exe.
+## Ambiente e repository
+- Progetto sul PC: C:\Users\felice\Documents\Codex\reparatio.
+- Estratto dall'archivio originale preservando .git e i due commit iniziali su main.
+- SDK 10.0.401: C:\Program Files\dotnet\dotnet.exe.
+- MSBuildEnableWorkloadResolver=false e -m:1 necessari nell'ambiente ristretto.
+- EF Core SqlServer/Design e dotnet-ef 10.0.12; tool locale versionato.
+- SQL Server 17.0.1000.7, WIN-796T11TJJRG\SQLEXPRESS.
+- Database Reparatio già creato dall'utente; nuovo login dedicato con db_owner.
+- Connessione riuscita via TCP 127.0.0.1:62081; nome istanza non risolto nel contesto.
+- Credenziali fornite usate nei processi, non salvate nei file o nei commit.
 
 ## Implementato
-- Apertura e selezione automatica iniziali del tecnico.
-- Riassegnazione nella stessa sede e tenant a tecnico disponibile, con storico immutabile
-  di precedente/nuovo tecnico, autore, data e motivo. Respinti stesso tecnico,
-  autore/motivo mancanti e pratiche senza lavoro pendente.
-- Avvio lavoro con snapshot di preventivo accettato e importi acconto/incassi confermati.
-- Invio al collaudo, esito positivo/negativo e ritorno in lavorazione.
-- Application: comando di apertura, controllo accesso, ricevuta idempotente,
-  controllo payload e retry limitato a cinque tentativi su versione concorrente.
-- Contratto atomico per pratica, carico, ultima assegnazione e ricevuta.
+- Policy tecnica per tenant/sede, minor carico, rotazione e Guid stabile.
+- Apertura, prima assegnazione, riassegnazione con storico, avvio lavoro, collaudo
+  positivo/negativo e ritorno in lavorazione nel dominio.
+- FIFO con ArrivalSequence positivo e univoco, ricalcolo carico tra assegnazioni.
+- Application: apertura e disponibilità con contratti di autorizzazione,
+  idempotenza, payload invariato, cancellazione e retry limitati.
+- Nuove pratiche non superano quelle già in attesa.
+- Infrastructure EF Code First: Sites, Technicians, Repairs, Receipts, Reassignments.
+- Chiavi/FK composte tenant/sede, carico non negativo, stati/assegnazioni coerenti,
+  sequenze univoche e ricevute per tenant/tipo comando/RequestId.
+- SqlRepairStore implementa apertura e disponibilità. Snapshot Serializable;
+  commit protetti dalla versione condivisa della sede e transazione ReadCommitted.
+- Pratica, disponibilità, carico, timestamp, FIFO e ricevuta persistiti atomicamente.
+- Migration InitialRepairs 20261005055013 applicata al database Reparatio.
+- scripts/database.ps1 per migrazioni, script SQL e test; nessuna password incorporata.
 
 ## Verificato
-- Restore NuGet riuscito e 17 test originali superati prima delle modifiche.
-- Dominio: nuovi test prima del codice; RED di compilazione per API assente, poi GREEN.
-- Application: otto test eseguiti e falliti con handler non implementato (RED), poi GREEN.
-- Totale corrente: 35 casi Domain + 16 Application = 51 test superati, nessuno ignorato.
-- Test concorrente con barriera: tre richieste leggono la stessa versione prima dei commit;
-  due aperture distinte bilanciano il carico; ripetizione della stessa richiesta non duplica.
-- La verifica usa un adattatore di storage soltanto nei test: nessuna garanzia SQL verificata.
-- Il ciclo RED/GREEN della precedente sessione resta non verificato storicamente.
+- Restore NuGet e compilazione con warnings as errors.
+- Intera soluzione: 60 test superati, zero falliti, zero ignorati.
+- 35 Domain + 16 Application + 9 integrazione su SQL Server reale.
+- SQL: apertura e ricevute persistenti, replay, payload modificato, identificativo
+  pratica duplicato, versione superata senza scritture parziali, FIFO, disponibilità.
+- Concorrenza SQL forzata con barriera: doppia richiesta identica e apertura contro
+  cambio disponibilità condividono la versione e non duplicano carichi/pratiche.
+- Query isolate per tenant/sede; FK respingono tecnici di altro tenant o altra sede;
+  database respinge carico negativo senza alterare quello persistito.
+- ef migrations has-pending-model-changes: nessuna differenza dal modello migrato.
+- Fixture SQL sintetiche, rimozione soltanto dei propri tenant casuali; nessun drop.
 
-## Ambiente
-`dotnet --info` legge SDK e runtime ma segnala accesso negato al Service Control Manager.
-Restore e test funzionano usando MSBuildEnableWorkloadResolver=false e -m:1.
-Accesso NuGet autorizzato; cache CLI/NuGet reindirizzate nella cartella di lavoro
-C:\Users\felice\Documents\Codex\2026-10-05\hai\work.
+## Evidenza TDD
+- I 17 test originali passavano prima delle modifiche locali; il RED/GREEN storico
+  della vecchia sessione resta non verificato.
+- Lifecycle: RED di compilazione per API assente, poi GREEN.
+- Application apertura: otto test falliti con handler non implementato, poi GREEN.
+- FIFO: otto Domain e otto Application falliti prima del comportamento, poi GREEN.
+- SQL: dopo applicazione dello schema, sette test falliti per adattatore non
+  implementato (RED); dopo implementazione tutti superati (GREEN).
+- Due ulteriori verifiche SQL su isolamento e carico aggiunte come regressioni.
+- Il primo tentativo di test SQL senza tabelle non è contato come RED comportamentale.
 
 ## Limiti e prossimi passi
-- IRepairAccess è un contratto: autenticazione e autorizzazione reali non implementate.
-- RepairWorkAuthorization è un input interno fidato, non una prova di accettazione:
-  deve essere costruito da dati Quotes/Payments verificati; non esporlo come input API.
-- ReturnToWork è rilavorazione dopo collaudo; nuovo lavoro fuori preventivo richiederà
-  revisione accettata e ulteriore controllo acconto, non ancora modellati.
-- Storico riassegnazione in memoria, senza persistenza. L'autorizzazione del responsabile
-  e l'aggiornamento atomico dei carichi nella riassegnazione restano in Application.
-- SQL Server/EF Core: implementare tutti gli scrittori secondo il protocollo di versione
-  tenant/sede, vincoli univoci e transazioni; verificare concorrenza su database reale.
-- Persistenza della coda e collegamento del comando disponibilità alla futura API; diagnosi dettagliata, preventivi,
-  rifiuti, pagamenti, ritiro, API, frontend e demo ancora da implementare.
-- Nessuna decisione su provider pagamenti o identità globale cliente è stata presa.
-- Brief completo conservato in docs/PROJECT_BRIEF.md, con proposte distinte dai requisiti.
+- Autenticazione/autorizzazione reali non implementate: contratti obbligatori in API.
+- Persistenza riassegnazione, collaudo e ritorno al lavoro ancora da integrare con
+  comandi Application e lo stesso protocollo di versione/carichi; tabella storico pronta.
+- Ripresa automatica della coda dopo tutte le cause di risveglio: coordinatore/worker
+  e outbox ancora da implementare. Il comportamento è eseguito dal comando disponibilità.
+- RepairWorkAuthorization è uno snapshot interno fidato di Quotes/Payments,
+  non un input client né la prova di accettazione di un preventivo.
+- ReturnToWork rappresenta rilavorazione dopo collaudo; nuovi lavori richiedono
+  revisione accettata e controllo acconto, ancora da modellare.
+- Sites/Technicians sono stato operativo e proiezioni di Repairs, non il modello
+  definitivo Tenant Management o Identity.
+- Diagnosi dettagliata, listino/preventivi, rifiuti, pagamenti, ritiro, API, Angular,
+  notifiche e demo ancora da implementare.
+- Nessuna decisione definitiva su account cliente globale o provider pagamenti.
 
-## Incremento: coda e disponibilità
-- Repair.AssignWaiting consente la prima assegnazione soltanto in WaitingForAssignment;
-  verifica tenant, sede e disponibilità, senza creare una falsa riassegnazione.
-- WaitingAssignmentPolicy pianifica in FIFO mediante ArrivalSequence positivo e univoco
-  nella sede. Ordina input non ordinati, isola tenant/sedi, respinge duplicati e aggiorna
-  carico e ultima assegnazione tra una scelta e la successiva senza mutare gli input.
-- SetTechnicianAvailabilityHandler autorizza il responsabile tramite un contratto,
-  cambia disponibilità e pianifica automaticamente la coda nello stesso commit atomico.
-  Idempotenza, payload invariato, cancellazione e cinque retry su conflitto.
-- Apertura con pratiche già in coda: accoda la nuova pratica anche se esiste un tecnico
-  disponibile, impedendo il sorpasso. Il futuro coordinatore deve riattivare lo smaltimento
-  anche dopo apertura, variazioni di carico e recupero di operazioni fallite.
-- Nessun limite massimo di carico introdotto: tutti i tecnici eleggibili partecipano e
-  tutte le pratiche pendenti sono distribuite quando almeno un tecnico è disponibile.
-- Pratiche assegnate in attesa di cliente/acconto/ricambio non fanno parte della coda
-  di prima assegnazione; continuano a contare nel carico come già confermato.
-- RED osservato: otto test Domain falliti, sette disponibilità falliti e un test
-  sorpasso FIFO fallito. GREEN: intera soluzione, 51 superati e zero ignorati.
-- Il runner necessita di comunicazione di rete locale; in questo turno è stata
-  autorizzata. Il tentativo precedente bloccato è stato interrotto, non contato.
-- Verifica concorrente della disponibilità con due snapshot della stessa versione:
-  nessuna doppia assegnazione. Apertura e disponibilità sono testate separatamente;
-  concorrenza incrociata e transazioni reali sono da verificare con SQL Server.
-- Nessun adattatore di persistenza né worker/API attivo: il comando è pronto per
-  l'integrazione; il comportamento automatico è verificato a livello Application.
+Per i comandi e lo schema vedere docs/PERSISTENCE.md.
