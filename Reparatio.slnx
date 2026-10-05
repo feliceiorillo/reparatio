@@ -1,0 +1,4 @@
+<Solution>
+<Folder Name="/src/"><Project Path="src/Reparatio.Repairs.Domain/Reparatio.Repairs.Domain.csproj" /></Folder>
+<Folder Name="/tests/"><Project Path="tests/Reparatio.Repairs.Domain.Tests/Reparatio.Repairs.Domain.Tests.csproj" /></Folder>
+</Solution>

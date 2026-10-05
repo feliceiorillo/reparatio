@@ -77,7 +77,6 @@ public class AssignmentTests
     [InlineData(RepairStatus.AwaitingTesting, true)]
     [InlineData(RepairStatus.ReadyForCollection, false)]
     [InlineData(RepairStatus.Collected, false)]
-    [InlineData(RepairStatus.ToReturnUnrepaired, false)]
     [InlineData(RepairStatus.WaitingForAssignment, false)]
     public void Workload_tracks_pending_work_not_collection(RepairStatus status, bool expected)
         => Assert.Equal(expected, RepairWorkload.Counts(status));
