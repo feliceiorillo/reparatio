@@ -41,7 +41,7 @@ idempotente e unicità dell'identificativo pratica. Le altre operazioni che alte
 carico/disponibilità devono usare lo stesso protocollo. Cinque conflitti consecutivi
 terminano con errore; il chiamante può riprovare con lo stesso RequestId.
 La ricevuta deve restare disponibile per tutta la finestra di idempotenza concordata.
-L'adattatore nei test verifica questo contratto; SQL Server ed EF Core restano da fare.
+L'adattatore nei test verifica questo contratto; SqlRepairStore implementa ora questi contratti su SQL Server/EF Core.
 
 Responsabilità previste: SQL Server/EF Core per dati e transazioni; Identity & Access
 per autenticazione, JWT e autorizzazione; RabbitMQ per eventi tra contesti con outbox
@@ -61,8 +61,7 @@ o acconto già assegnate non bloccano questa coda e restano incluse nel carico.
 
 Il comando SetTechnicianAvailability cambia la disponibilità e applica il piano
 nella stessa transazione. Un conflitto non deve lasciare effetti parziali. Tutti gli
-scrittori condividono la versione tenant/sede usata da OpenRepair. Persistenza e
-concorrenza incrociata saranno provate con SQL Server, non con EF InMemory.
+scrittori condividono la versione tenant/sede usata da OpenRepair. Persistenza e concorrenza incrociata sono verificate con SQL Server reale.
 Le ricevute sono distinte per tenant, tipo di comando e RequestId; il payload deve
 restare identico. Disponibilità falsa non azzera il carico delle pratiche assegnate.
 I contratti di autorizzazione sono punti di integrazione per l'identità autenticata,
@@ -77,5 +76,17 @@ La sezione precedente descriveva il passaggio ancora da fare: SqlRepairStore ora
 implementa apertura e disponibilità su SQL Server. InitialRepairs è applicata al
 database Reparatio; nove test di integrazione verificano anche concorrenza incrociata,
 isolamento e vincoli del database. Vedere PERSISTENCE.md per schema e comandi.
-Riassegnazione e collaudo restano comportamenti del dominio in attesa dei rispettivi
-comandi di persistenza; tutti i futuri scrittori devono acquisire il gate della sede.
+Riassegnazione e collaudo hanno ora comandi persistenti; tutti gli scrittori acquisiscono il gate della sede.
+
+## Persistenza del ciclo di lavorazione completata
+RepairState è uno snapshot interno per ricostituire l'aggregato dalle righe persistite;
+non è un DTO da accettare dal client. Restore copia lo storico e verifica invarianti
+su identificativi, stato e presenza del tecnico. Il dominio continua a controllare
+riassegnazione e transizioni attraverso i suoi comportamenti.
+
+RepairLifecycleHandler coordina i quattro comandi con autorizzazioni specifiche per
+azione e pratica, actor autenticato, orologio server e retry idempotenti. SQL rivalida
+il cambiamento sotto il gate condiviso della sede; storico e carichi sono atomici.
+La rilavorazione rimette la pratica nel carico senza essere una nuova assegnazione.
+ReturnToWork resta una rilavorazione sotto autorizzazione esistente: nuovo lavoro
+fuori preventivo richiederà il flusso revisione/accettazione, non questo comando.

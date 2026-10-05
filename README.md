@@ -6,10 +6,10 @@ Progetto locale: C:\Users\felice\Documents\Codex\reparatio.
 ## Stato
 
 Dominio .NET 10: assegnazione, riassegnazione con storico e collaudo.
-Application/CQRS: apertura e disponibilità con FIFO, accesso, idempotenza e retry.
+Application/CQRS: apertura, disponibilità, riassegnazione, collaudo e ritorno al lavoro con controllo accesso, idempotenza e retry.
 Persistenza Code First EF Core 10.0.12 / SQL Server: migrazione InitialRepairs applicata
-al database Reparatio. Apertura e disponibilità salvate in transazioni atomiche.
-60 test xUnit superati: 35 Domain, 16 Application, 9 SQL Server reali.
+al database Reparatio, insieme a RepairLifecycleAudit. Apertura, disponibilità, riassegnazione e collaudo salvati in transazioni atomiche, con storico e carichi.
+83 test xUnit superati: 41 Domain, 23 Application, 19 SQL Server reali.
 API, autenticazione reale, Angular e workflow completo ancora da implementare.
 
 ## Verifica

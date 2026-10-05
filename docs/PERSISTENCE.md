@@ -14,7 +14,7 @@ attese infinite; MARS disabilitato. Su richiesta dell'utente, le credenziali son
 
 ## Migrazioni
 Prima migrazione: InitialRepairs (20261005055013), applicata al database già creato.
-Tabelle: Sites, Technicians, Repairs, Receipts, Reassignments e __EFMigrationsHistory.
+Tabelle: Sites, Technicians, Repairs, Receipts, Reassignments, RepairTransitions e __EFMigrationsHistory.
 Sono presenti chiavi composte tenant/sede, foreign key senza cancellazione a cascata,
 vincoli di carico/stato/assegnazione e indici univoci per ordine di arrivo e ricevute.
 
@@ -51,13 +51,11 @@ Non usano EnsureDeleted, non rimuovono il database e non alterano dati preesiste
 Concorrenza forzata con barriera per richieste duplicate e apertura/disponibilità.
 
 ## Perimetro attuale
-Persistiti apertura e prima assegnazione/disponibilità. Sites è uno stato operativo
-della sede per Repairs, non il modello definitivo di Tenant Management; le righe
-tecnico sono proiezioni per assegnazione, non account Identity. Nessun seed demo o
-utente reale inserito. La tabella dello storico è predisposta ma riassegnazione e
-collaudo non hanno ancora comandi di persistenza. Ogni futuro scrittore del carico
-deve utilizzare lo stesso protocollo di versione. API, worker/outbox e autenticazione
-restano da integrare; nessun endpoint espone il DbContext al client.
+Persistiti apertura, disponibilità, riassegnazione, invio/esito del collaudo e ritorno
+in lavorazione. Sites è uno stato operativo per Repairs, non il modello definitivo
+Tenant Management; Technicians è una proiezione per assegnazione, non un account.
+Avvio lavoro collegato a Quotes/Payments, API, worker/outbox e autenticazione reale
+restano da integrare. Nessun endpoint espone DbContext o RepairState al client.
 
 ## Secret locale Windows
 Percorso predefinito: C:\Users\felice\Documents\Codex\.secrets\reparatio\sql.dpapi.
@@ -71,5 +69,30 @@ Per ricreare/aggiornare il secret, usare scripts/set-sql-secret.ps1; la password
 richiesta con input nascosto. Server, Database, UserName e Path sono parametri opzionali.
 Il percorso standard .NET User Secrets del profilo non era scrivibile nel sandbox;
 è stato usato questo percorso autorizzato con cifratura Windows, senza protocolli custom.
-Test verificati con REPARATIO_SQL_CONNECTION assente: 60 superati, inclusi 9 SQL,
+Test verificati con REPARATIO_SQL_CONNECTION assente: 83 superati, inclusi 19 SQL,
 zero ignorati. Anche la factory design-time legge il secret automaticamente.
+
+## Transizioni persistite del ciclo di riparazione
+RepairLifecycleAudit (20261005062052) aggiunge RepairTransitions ed è applicata.
+I nuovi comandi usano lo stesso gate della sede e lo stesso protocollo dei due
+adattatori precedenti. Snapshot, pratica e storico riassegnazioni vengono letti
+nella stessa transazione Serializable. Il dominio viene ricaricato, il comando
+applicato in Application e rivalidato sotto il lock del commit.
+
+L'autore arriva da IRepairLifecycleAccess dopo il controllo della specifica azione
+sulla pratica. Nessun actor viene letto da un campo del comando. L'implementazione
+reale dei permessi resta da collegare a Identity/API. Timestamp dall'orologio server.
+
+Riassegnazione aggiorna entrambe le proiezioni di carico e LastAssignedAt del nuovo
+tecnico; esito positivo decrementa il carico, esito negativo lo mantiene. ReturnToWork
+incrementa il carico ma non LastAssignedAt. Un decremento con carico zero segnala
+incoerenza e annulla l'intera transazione, inclusa la versione della sede.
+Storico riassegnazione e storico transizioni sono append-only tramite questi comandi.
+Le ricevute serializzano i quattro tipi noti di comando con discriminatore esplicito;
+un replay restituisce il risultato originario, anche se la pratica è poi cambiata.
+
+19 test SQL complessivi, inclusi dieci nuovi casi di lifecycle. Le fixture di lifecycle
+preparano stati sintetici per isolare il comportamento: non è un comando pubblico
+per iniziare lavoro senza preventivo/acconto. La disponibilità dell'autorizzazione
+per rilavorazione entro il preventivo è requisito dei futuri permessi; ReturnToWork
+non deve essere usato per aggirare accettazione di nuovi lavori o revisioni.

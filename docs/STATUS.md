@@ -30,8 +30,8 @@
 
 ## Verificato
 - Restore NuGet e compilazione con warnings as errors.
-- Intera soluzione: 60 test superati, zero falliti, zero ignorati.
-- 35 Domain + 16 Application + 9 integrazione su SQL Server reale.
+- Intera soluzione: 83 test superati, zero falliti, zero ignorati.
+- 41 Domain + 23 Application + 19 integrazione su SQL Server reale.
 - SQL: apertura e ricevute persistenti, replay, payload modificato, identificativo
   pratica duplicato, versione superata senza scritture parziali, FIFO, disponibilità.
 - Concorrenza SQL forzata con barriera: doppia richiesta identica e apertura contro
@@ -54,8 +54,7 @@
 
 ## Limiti e prossimi passi
 - Autenticazione/autorizzazione reali non implementate: contratti obbligatori in API.
-- Persistenza riassegnazione, collaudo e ritorno al lavoro ancora da integrare con
-  comandi Application e lo stesso protocollo di versione/carichi; tabella storico pronta.
+- Riassegnazione, collaudo e ritorno al lavoro persistiti; restano API e implementazione reale dei contratti di autorizzazione.
 - Ripresa automatica della coda dopo tutte le cause di risveglio: coordinatore/worker
   e outbox ancora da implementare. Il comportamento è eseguito dal comando disponibilità.
 - RepairWorkAuthorization è uno snapshot interno fidato di Quotes/Payments,
@@ -78,3 +77,37 @@ Per i comandi e lo schema vedere docs/PERSISTENCE.md.
 - script set-sql-secret.ps1 aggiorna il secret con password richiesta a input nascosto.
 - Verificata intera soluzione con connessione assente dall'ambiente: 60 test superati,
   inclusi i nove SQL, nessuno ignorato.
+
+## Persistenza riassegnazione e collaudo completata
+- Comandi ReassignRepair, SubmitRepairForTesting, RecordRepairTesting,
+  ReturnRepairToWork; RepairLifecycleHandler con idempotenza e cinque retry.
+- Accesso verificato prima di leggere anche nei replay; autore ricavato dal contratto
+  di identità autenticata. Il comando non contiene un ActorId liberamente inviabile.
+- Repair.Restore/Snapshot ricostruisce lo stato persistito e copia lo storico,
+  senza setter pubblici o finte assegnazioni. Identificativi/stati incoerenti respinti.
+- SqlRepairStore acquisisce lo stesso gate di apertura/disponibilità e rivalida il
+  cambiamento col dominio prima di salvare. Pratica, carichi, audit e ricevuta atomici.
+- Riassegnazione: carico precedente -1, nuovo +1; timestamp di assegnazione nuovo;
+  storico con precedente/nuovo tecnico, autore, data e motivo. Storico già esistente
+  ricaricato e mantenuto senza duplicazione. Precedente indisponibile consentito.
+- Invio al collaudo: carico invariato. Esito positivo: carico -1. Esito negativo:
+  ritorno InProgress con carico invariato. Rilavorazione dopo esito positivo: +1
+  senza modificare LastAssignedAt, perché non è una nuova assegnazione.
+- Tabella RepairTransitions conserva invio, esito e ritorno al lavoro, autore/data,
+  stato precedente/nuovo, esito nullable e note/motivo. Note fino a 2000 caratteri;
+  motivo riassegnazione fino a 1000. Motivo obbligatorio per riaprire la lavorazione.
+- Migration 20261005062052_RepairLifecycleAudit applicata; nessuna differenza pendente
+  tra modello Code First e migrazioni.
+- TDD: sei nuovi casi Domain, sette Application e dieci SQL osservati in RED,
+  poi GREEN. Totale 83 superati, nessuno ignorato, connessione letta dal secret locale.
+- SQL verificato: replay anche dopo successive transizioni, storico ripetuto,
+  carichi/timestamp, target/stati/scope invalidi, versione superata, rollback se
+  carico persistito incoerente; doppia riassegnazione simultanea e collaudo contro
+  riassegnazione su snapshot identici. Il collaudo positivo può rendere la successiva
+  riassegnazione non più valida; nessuna operazione perde o duplica il carico.
+- Fixture sintetiche: nessun dato reale toccato, rimozione solo dei tenant generati.
+- Avvio lavoro con controllo Quotes/Payments resta un comportamento di dominio:
+  il relativo comando persistente sarà collegato al preventivo accettato/acconto.
+  I test preparano stati sintetici InProgress/AwaitingTesting come fixture esplicite.
+- Il ritorno al lavoro riguarda rilavorazione entro l'autorizzazione esistente,
+  non autorizza nuovi guasti/lavori fuori preventivo. Revisioni restano da implementare.
