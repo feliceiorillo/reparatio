@@ -52,6 +52,19 @@ public sealed class ReassignmentRow
     public string Reason { get; set; } = "";
 }
 
+public sealed class RepairTransitionRow
+{
+    public long Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid RepairId { get; set; }
+    public string Operation { get; set; } = "";
+    public RepairStatus PreviousStatus { get; set; }
+    public RepairStatus NewStatus { get; set; }
+    public Guid ActorId { get; set; }
+    public DateTimeOffset OccurredAt { get; set; }
+    public bool? Passed { get; set; }
+    public string? Notes { get; set; }
+}
 public sealed class RepairsDbContext(DbContextOptions<RepairsDbContext> options) : DbContext(options)
 {
     public DbSet<SiteRow> Sites => Set<SiteRow>();
@@ -59,6 +72,8 @@ public sealed class RepairsDbContext(DbContextOptions<RepairsDbContext> options)
     public DbSet<RepairRow> Repairs => Set<RepairRow>();
     public DbSet<ReceiptRow> Receipts => Set<ReceiptRow>();
     public DbSet<ReassignmentRow> Reassignments => Set<ReassignmentRow>();
+
+    public DbSet<RepairTransitionRow> RepairTransitions => Set<RepairTransitionRow>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -85,6 +100,11 @@ public sealed class RepairsDbContext(DbContextOptions<RepairsDbContext> options)
         receipts.HasKey(r => new { r.TenantId, r.Operation, r.RequestId });
         receipts.Property(r => r.Operation).HasMaxLength(40);
         receipts.HasOne<SiteRow>().WithMany().HasForeignKey(r => new { r.TenantId, r.SiteId }).OnDelete(DeleteBehavior.Restrict);
+        var transitions = model.Entity<RepairTransitionRow>();
+        transitions.Property(t => t.Operation).HasMaxLength(40);
+        transitions.Property(t => t.Notes).HasMaxLength(2000);
+        transitions.HasIndex(t => new { t.TenantId, t.RepairId, t.Id });
+        transitions.HasOne<RepairRow>().WithMany().HasForeignKey(t => new { t.TenantId, Id = t.RepairId }).OnDelete(DeleteBehavior.Restrict);
         var history = model.Entity<ReassignmentRow>();
         history.Property(r => r.Reason).HasMaxLength(1000);
         history.HasOne<RepairRow>().WithMany().HasForeignKey(r => new { r.TenantId, Id = r.RepairId }).OnDelete(DeleteBehavior.Restrict);
@@ -103,3 +123,4 @@ public sealed class RepairsDesignTimeFactory : IDesignTimeDbContextFactory<Repai
         return new RepairsDbContextFactory(connection).CreateDbContext();
     }
 }
+

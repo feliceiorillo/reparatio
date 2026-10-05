@@ -7,7 +7,7 @@ using Reparatio.Repairs.Domain;
 
 namespace Reparatio.Repairs.Infrastructure;
 
-public sealed class SqlRepairStore(IDbContextFactory<RepairsDbContext> factory) : IRepairOpeningStore, ITechnicianAvailabilityStore
+public sealed partial class SqlRepairStore(IDbContextFactory<RepairsDbContext> factory) : IRepairOpeningStore, ITechnicianAvailabilityStore
 {
     private const string Opening = "OpenRepair";
     private const string Availability = "SetTechnicianAvailability";
@@ -147,3 +147,4 @@ public sealed class SqlRepairStore(IDbContextFactory<RepairsDbContext> factory) 
         { TenantId = tenantId, SiteId = siteId, Operation = operation, RequestId = requestId,
             Payload = JsonSerializer.Serialize(command), Result = JsonSerializer.Serialize(result) };
 }
+

@@ -210,6 +210,7 @@ public class SqlRepairStoreTests
         {
             // Remove only this fixture's randomly generated tenant; never drop the database.
             await using var db = Factory.CreateDbContext();
+            await db.RepairTransitions.Where(r => r.TenantId == Tenant).ExecuteDeleteAsync();
             await db.Reassignments.Where(r => r.TenantId == Tenant).ExecuteDeleteAsync();
             await db.Receipts.Where(r => r.TenantId == Tenant).ExecuteDeleteAsync();
             await db.Repairs.Where(r => r.TenantId == Tenant).ExecuteDeleteAsync();
@@ -218,3 +219,4 @@ public class SqlRepairStoreTests
         }
     }
 }
+
